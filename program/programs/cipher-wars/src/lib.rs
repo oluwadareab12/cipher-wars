@@ -1,9 +1,10 @@
 use anchor_lang::prelude::*;
 use anchor_lang::system_program;
 
-declare_id!("CiPHR7aRsWoXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+declare_id!("5dCn2JB86JwZo93NQAZ2unBqAxQLc1ZwXUbbgFPooxTi");
 
 // Hardcoded resolver pubkey (replace with real key before mainnet)
+#[allow(dead_code)]
 const RESOLVER_PUBKEY: &str = "ResoLveR1111111111111111111111111111111111111";
 const TIMEOUT_SLOTS: u64 = 50;
 const MAX_MOVES: usize = 20;
@@ -228,7 +229,6 @@ pub mod cipher_wars {
         );
 
         // Check if opponent has not moved and timeout has passed
-        let current_slot = clock.slot;
         let claimant_has_moved;
         let opponent_has_moved;
 
