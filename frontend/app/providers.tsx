@@ -56,8 +56,18 @@ function ProgramProviderInner({ children }: { children: ReactNode }) {
 }
 
 export function Providers({ children }: { children: ReactNode }) {
-  const endpoint = clusterApiUrl("devnet");
+  const [mounted, setMounted] = useState(false);
+  const endpoint = useMemo(() => clusterApiUrl("devnet"), []);
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Render children unstyled until client mounts to avoid SSR/hydration mismatch
+  if (!mounted) {
+    return <>{children}</>;
+  }
 
   return (
     <ConnectionProvider endpoint={endpoint}>
@@ -69,3 +79,5 @@ export function Providers({ children }: { children: ReactNode }) {
     </ConnectionProvider>
   );
 }
+
+export default Providers;
