@@ -10,11 +10,12 @@ import type { WalletContextState } from "@solana/wallet-adapter-react";
 
 const DEVNET_RPC = "https://api.devnet.solana.com";
 const PROGRAM_ID = new PublicKey(
-  "CiPHR7aRsWoXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+  "5dCn2JB86JwZo93NQAZ2unBqAxQLc1ZwXUbbgFPooxTi"
 );
 
 // Minimal IDL for client-side interaction
 const IDL = {
+  address: "5dCn2JB86JwZo93NQAZ2unBqAxQLc1ZwXUbbgFPooxTi",
   version: "0.1.0",
   name: "cipher_wars",
   instructions: [
@@ -174,7 +175,7 @@ export function getProvider(
 }
 
 export function getProgram(provider: AnchorProvider): Program {
-  return new Program(IDL, PROGRAM_ID, provider);
+  return new Program(IDL, provider);
 }
 
 export function gameIdToBytes(gameIdHex: string): number[] {
@@ -307,5 +308,5 @@ export async function fetchGameState(
   const gamePda = getGamePda(gameIdBytes);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return program.account["gameState"].fetch(gamePda) as Promise<GameState>;
+  return (program.account as any).gameState.fetch(gamePda) as Promise<GameState>;
 }

@@ -44,7 +44,7 @@ export async function encryptMove(
     { name: "X25519" },
     true,
     ["deriveKey", "deriveBits"]
-  );
+  ) as CryptoKeyPair;
 
   // Export client public key
   const clientPublicKeyBytes = new Uint8Array(
@@ -82,10 +82,13 @@ export async function encryptMove(
 
   const ciphertext = await subtle.encrypt({ name: "AES-GCM", iv }, aesKey, plaintext);
 
+  const toB64 = (buf: ArrayBuffer | Uint8Array): string =>
+    btoa(Array.from(buf instanceof Uint8Array ? buf : new Uint8Array(buf), (b) => String.fromCharCode(b)).join(""));
+
   return {
-    encryptedData: btoa(String.fromCharCode(...new Uint8Array(ciphertext))),
-    iv: btoa(String.fromCharCode(...iv)),
-    clientPublicKey: btoa(String.fromCharCode(...clientPublicKeyBytes)),
+    encryptedData: toB64(ciphertext),
+    iv: toB64(iv),
+    clientPublicKey: toB64(clientPublicKeyBytes),
   };
 }
 

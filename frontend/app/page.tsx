@@ -12,8 +12,6 @@ import {
   joinGame,
   fetchGameState,
   resolveGame,
-  getGamePda,
-  gameIdToBytes,
 } from "../lib/anchor";
 import {
   initializeBoard,
@@ -21,7 +19,8 @@ import {
   checkWinCondition,
 } from "../lib/game";
 import type { GameBoard as GameBoardType } from "../lib/game";
-import type { TurnResolution } from "../../mxe/src/combat.js";
+import type { TurnResolution } from "../lib/mxe-types";
+import { resolveTurn, generateMxeKeyPair } from "../lib/mxe-client";
 import { PublicKey } from "@solana/web3.js";
 
 // Simulated MXE public key (replace with real Arcium MXE key in production)
@@ -169,8 +168,6 @@ export default function Home() {
 
       setResolverStatus("Sending to MXE for encrypted combat resolution…");
 
-      // Dynamically import MXE to avoid SSR issues
-      const { resolveTurn, generateMxeKeyPair } = await import("../../mxe/src/combat.js");
       const mxeKeyPair = await generateMxeKeyPair();
 
       const encInput = [

@@ -1,7 +1,7 @@
 "use client";
 
 import { useWallet } from "@solana/wallet-adapter-react";
-import type { TurnResolution } from "../../mxe/src/combat.js";
+import type { TurnResolution } from "../lib/mxe-types";
 import type { GameBoard } from "../lib/game";
 
 interface Props {

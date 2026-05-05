@@ -1,4 +1,4 @@
-import type { TurnResolution, CombatResult } from "../../mxe/src/combat.js";
+import type { TurnResolution, CombatResult } from "./mxe-types";
 
 export interface Territory {
   id: number;
