@@ -19,14 +19,15 @@ import { clusterApiUrl } from "@solana/web3.js";
 import type { Program } from "@coral-xyz/anchor";
 import { getConnection, getProvider, getProgram } from "../lib/anchor";
 
-// Anchor program context
+// ─── Anchor program context ───────────────────────────────────────────────────
+
 const ProgramContext = createContext<Program | null>(null);
 
 export function useAnchorProgram(): Program | null {
   return useContext(ProgramContext);
 }
 
-function ProgramProviderInner({ children }: { children: ReactNode }) {
+function AnchorProgramProvider({ children }: { children: ReactNode }) {
   const wallet = useWallet();
   const { connected, publicKey, signTransaction, signAllTransactions } = wallet;
   const [program, setProgram] = useState<Program | null>(null);
@@ -39,12 +40,12 @@ function ProgramProviderInner({ children }: { children: ReactNode }) {
     try {
       const conn = getConnection();
       const provider = getProvider(wallet, conn);
-      const prog = getProgram(provider);
-      setProgram(prog);
+      setProgram(getProgram(provider));
     } catch (e) {
       console.error("[CipherWars] Failed to initialize Anchor program:", e);
       setProgram(null);
     }
+  // wallet reference changes on every render; individual fields are stable signals
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connected, publicKey, signTransaction, signAllTransactions]);
 
@@ -55,29 +56,23 @@ function ProgramProviderInner({ children }: { children: ReactNode }) {
   );
 }
 
-export function Providers({ children }: { children: ReactNode }) {
-  const [mounted, setMounted] = useState(false);
+// ─── Client-only layout wrapping all wallet adapter providers ─────────────────
+// Rendered directly from page.tsx (not layout.tsx) so the provider tree
+// never touches the SSR pass — eliminating hydration mismatch #418.
+
+export default function ClientLayout({ children }: { children: ReactNode }) {
   const endpoint = useMemo(() => clusterApiUrl("devnet"), []);
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Render children unstyled until client mounts to avoid SSR/hydration mismatch
-  if (!mounted) {
-    return <>{children}</>;
-  }
 
   return (
     <ConnectionProvider endpoint={endpoint}>
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
-          <ProgramProviderInner>{children}</ProgramProviderInner>
+          <AnchorProgramProvider>
+            {children}
+          </AnchorProgramProvider>
         </WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
   );
 }
-
-export default Providers;

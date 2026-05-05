@@ -6,7 +6,7 @@ import WalletButton from "../components/WalletButton";
 import GameBoard from "../components/GameBoard";
 import MovePanel from "../components/MovePanel";
 import ResultCard from "../components/ResultCard";
-import { useAnchorProgram } from "./providers";
+import ClientLayout, { useAnchorProgram } from "./client-layout";
 import {
   createGame,
   joinGame,
@@ -23,13 +23,25 @@ import type { TurnResolution } from "../lib/mxe-types";
 import { resolveTurn, generateMxeKeyPair } from "../lib/mxe-client";
 import { PublicKey } from "@solana/web3.js";
 
-// Simulated MXE public key (replace with real Arcium MXE key in production)
 const MXE_PUBLIC_KEY_B64 =
-  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; // placeholder 32-byte key
+  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
 type Tab = "lobby" | "game" | "resolver";
 
+// ─── Outer shell — renders ClientLayout so all wallet hooks below are
+//     guaranteed to run inside the provider tree, never during SSR. ────────────
+
 export default function Home() {
+  return (
+    <ClientLayout>
+      <GameContent />
+    </ClientLayout>
+  );
+}
+
+// ─── All game logic lives here, safely inside the wallet provider tree ────────
+
+function GameContent() {
   const wallet = useWallet();
   const { connected, publicKey } = wallet;
   const program = useAnchorProgram();
@@ -50,9 +62,6 @@ export default function Home() {
   const [resolverStatus, setResolverStatus] = useState<string>("");
   const [resolving, setResolving] = useState(false);
 
-  const myId = publicKey?.toBase58() ?? "";
-
-  // Generate a random hex game ID
   function generateGameId(): string {
     const bytes = window.crypto.getRandomValues(new Uint8Array(32));
     return Array.from(bytes)
@@ -64,14 +73,11 @@ export default function Home() {
     setCreateGameId(generateGameId());
   }, []);
 
-  // Poll game state when active
   const pollGameState = useCallback(async () => {
     if (!program || !activeGameId || !publicKey) return;
-
     try {
       const state = await fetchGameState(program, activeGameId);
       setTurnNumber(state.turn);
-
       if (!board) {
         const p1 = state.playerOne.toBase58();
         const p2 = state.playerTwo.toBase58();
@@ -79,13 +85,12 @@ export default function Home() {
           setBoard(initializeBoard(p1, p2));
         }
       }
-
       if ("resolved" in state.status && state.winner) {
         setGameOver(true);
         setWinnerId(state.winner.toBase58());
       }
     } catch {
-      // Game not found yet — normal while waiting
+      // game not found yet — normal while waiting
     }
   }, [program, activeGameId, publicKey, board]);
 
@@ -112,12 +117,7 @@ export default function Home() {
     }
     setLobbyStatus("Creating game on devnet…");
     try {
-      const tx = await createGame(
-        program,
-        wallet,
-        createGameId,
-        parseFloat(stakeAmount)
-      );
+      const tx = await createGame(program, wallet, createGameId, parseFloat(stakeAmount));
       setActiveGameId(createGameId);
       setLobbyStatus(`Game created ✓ — tx: ${tx.slice(0, 16)}…`);
       setTab("game");
@@ -145,15 +145,8 @@ export default function Home() {
       const tx = await joinGame(program, wallet, joinGameId);
       setActiveGameId(joinGameId);
       setLobbyStatus(`Joined ✓ — tx: ${tx.slice(0, 16)}…`);
-
-      // Init board immediately
       const state = await fetchGameState(program, joinGameId);
-      setBoard(
-        initializeBoard(
-          state.playerOne.toBase58(),
-          state.playerTwo.toBase58()
-        )
-      );
+      setBoard(initializeBoard(state.playerOne.toBase58(), state.playerTwo.toBase58()));
       setTab("game");
     } catch (err) {
       setLobbyStatus(`Error: ${err instanceof Error ? err.message : String(err)}`);
@@ -162,33 +155,25 @@ export default function Home() {
 
   async function handleResolveTurn() {
     if (!program || !activeGameId) return;
-
     setResolving(true);
     setResolverStatus("Fetching encrypted moves from chain…");
-
     try {
       const state = await fetchGameState(program, activeGameId);
-
       if (state.playerOneMoves.length === 0 || state.playerTwoMoves.length === 0) {
         setResolverStatus("Both players must submit moves before resolving");
         setResolving(false);
         return;
       }
-
       const lastTurn = state.turn - 1;
       const p1Move = state.playerOneMoves.find((m) => m.turn === lastTurn);
       const p2Move = state.playerTwoMoves.find((m) => m.turn === lastTurn);
-
       if (!p1Move || !p2Move) {
         setResolverStatus("Moves for last turn not found on chain");
         setResolving(false);
         return;
       }
-
       setResolverStatus("Sending to MXE for encrypted combat resolution…");
-
       const mxeKeyPair = await generateMxeKeyPair();
-
       const encInput = [
         {
           encryptedData: Buffer.from(p1Move.encryptedData).toString("base64"),
@@ -203,40 +188,23 @@ export default function Home() {
           playerId: state.playerTwo.toBase58(),
         },
       ];
-
       const resolution = await resolveTurn(encInput, mxeKeyPair.privateKey);
       setLastResolution(resolution);
-
       if (board) {
         const updatedBoard = applyResolution(board, resolution);
         setBoard(updatedBoard);
         const winner = checkWinCondition(updatedBoard);
-        if (winner) {
-          setGameOver(true);
-          setWinnerId(winner);
-        }
+        if (winner) { setGameOver(true); setWinnerId(winner); }
       }
-
       if (resolution.gameOver && resolution.winner) {
-        setResolverStatus(
-          `Game over! Winner: ${resolution.winner.slice(0, 8)}… — calling resolve_game…`
-        );
-        const tx = await resolveGame(
-          program,
-          wallet,
-          activeGameId,
-          new PublicKey(resolution.winner)
-        );
+        setResolverStatus(`Game over! Winner: ${resolution.winner.slice(0, 8)}… — calling resolve_game…`);
+        const tx = await resolveGame(program, wallet, activeGameId, new PublicKey(resolution.winner));
         setResolverStatus(`Resolved on-chain ✓ — tx: ${tx.slice(0, 16)}…`);
       } else {
-        setResolverStatus(
-          `Turn resolved. Hash: ${resolution.algorithmHash.slice(0, 16)}…`
-        );
+        setResolverStatus(`Turn resolved. Hash: ${resolution.algorithmHash.slice(0, 16)}…`);
       }
     } catch (err) {
-      setResolverStatus(
-        `Error: ${err instanceof Error ? err.message : String(err)}`
-      );
+      setResolverStatus(`Error: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setResolving(false);
     }
@@ -246,12 +214,7 @@ export default function Home() {
     if (!program || !publicKey || !winnerId || !activeGameId) return;
     setClaiming(true);
     try {
-      const tx = await resolveGame(
-        program,
-        wallet,
-        activeGameId,
-        new PublicKey(winnerId)
-      );
+      const tx = await resolveGame(program, wallet, activeGameId, new PublicKey(winnerId));
       alert(`Winnings claimed ✓ — tx: ${tx}`);
     } catch (err) {
       alert(`Error: ${err instanceof Error ? err.message : String(err)}`);
@@ -323,7 +286,6 @@ export default function Home() {
               <h2 className="font-bold text-cyan-400 uppercase tracking-widest text-sm">
                 Create Game
               </h2>
-
               <div className="space-y-3">
                 <div>
                   <label className="text-xs text-gray-400 block mb-1">Game ID</label>
@@ -341,11 +303,8 @@ export default function Home() {
                     </button>
                   </div>
                 </div>
-
                 <div>
-                  <label className="text-xs text-gray-400 block mb-1">
-                    Stake (SOL)
-                  </label>
+                  <label className="text-xs text-gray-400 block mb-1">Stake (SOL)</label>
                   <input
                     type="number"
                     value={stakeAmount}
@@ -356,7 +315,6 @@ export default function Home() {
                   />
                 </div>
               </div>
-
               <button
                 onClick={handleCreateGame}
                 className="w-full py-2.5 rounded-lg font-semibold text-sm
@@ -373,7 +331,6 @@ export default function Home() {
               <h2 className="font-bold text-purple-400 uppercase tracking-widest text-sm">
                 Join Game
               </h2>
-
               <div>
                 <label className="text-xs text-gray-400 block mb-1">Game ID</label>
                 <input
@@ -383,7 +340,6 @@ export default function Home() {
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs font-mono text-gray-300 focus:border-purple-500 focus:outline-none"
                 />
               </div>
-
               <button
                 onClick={handleJoinGame}
                 className="w-full py-2.5 rounded-lg font-semibold text-sm
@@ -400,13 +356,10 @@ export default function Home() {
                 {lobbyStatus}
               </div>
             )}
-
             {activeGameId && (
               <div className="md:col-span-2 text-xs text-gray-500 bg-gray-800/40 rounded-lg p-3 border border-gray-700/50">
                 Active game ID:{" "}
-                <span className="font-mono text-cyan-400 break-all">
-                  {activeGameId}
-                </span>
+                <span className="font-mono text-cyan-400 break-all">{activeGameId}</span>
               </div>
             )}
           </div>
@@ -415,31 +368,21 @@ export default function Home() {
         {connected && tab === "game" && (
           <div className="space-y-6">
             {!activeGameId ? (
-              <p className="text-gray-500 text-sm">
-                Create or join a game in the Lobby tab first.
-              </p>
+              <p className="text-gray-500 text-sm">Create or join a game in the Lobby tab first.</p>
             ) : !board ? (
-              <p className="text-gray-500 text-sm animate-pulse">
-                Waiting for opponent to join…
-              </p>
+              <p className="text-gray-500 text-sm animate-pulse">Waiting for opponent to join…</p>
             ) : (
               <div className="grid lg:grid-cols-[1fr_320px] gap-6">
                 <div className="space-y-4">
-                  {/* Turn indicator */}
                   <div className="flex items-center gap-3">
-                    <div className="text-xs text-gray-500 uppercase tracking-widest">
-                      Turn
-                    </div>
-                    <div className="text-cyan-400 font-bold text-lg">
-                      {turnNumber}
-                    </div>
+                    <div className="text-xs text-gray-500 uppercase tracking-widest">Turn</div>
+                    <div className="text-cyan-400 font-bold text-lg">{turnNumber}</div>
                     {gameOver && (
                       <div className="text-xs font-semibold text-yellow-400 bg-yellow-400/10 border border-yellow-400/30 px-2 py-0.5 rounded-full">
                         GAME OVER
                       </div>
                     )}
                   </div>
-
                   <div className="relative scanlines">
                     <GameBoard
                       board={board}
@@ -450,20 +393,15 @@ export default function Home() {
                     />
                   </div>
                 </div>
-
                 <div className="space-y-4">
                   {!gameOver && (
                     <MovePanel
                       board={board}
                       gameIdHex={activeGameId}
                       mxePubKeyB64={MXE_PUBLIC_KEY_B64}
-                      onMoveSubmitted={() => {
-                        // Refresh turn counter
-                        pollGameState();
-                      }}
+                      onMoveSubmitted={pollGameState}
                     />
                   )}
-
                   <ResultCard
                     gameOver={gameOver}
                     winnerId={winnerId}
@@ -485,23 +423,18 @@ export default function Home() {
               <h2 className="font-bold text-purple-400 uppercase tracking-widest text-sm">
                 MXE Combat Resolver
               </h2>
-
               <p className="text-xs text-gray-500">
-                Fetches both players' encrypted moves from on-chain, decrypts
+                Fetches both players&apos; encrypted moves from on-chain, decrypts
                 them inside the MXE, resolves combat, and optionally finalises
                 the game on-chain.
               </p>
-
               {activeGameId ? (
                 <div className="text-xs text-gray-600 font-mono break-all border border-gray-700/50 rounded-lg p-2 bg-gray-800/30">
                   Game: {activeGameId.slice(0, 32)}…
                 </div>
               ) : (
-                <p className="text-xs text-yellow-500">
-                  No active game — create or join one in the Lobby.
-                </p>
+                <p className="text-xs text-yellow-500">No active game — create or join one in the Lobby.</p>
               )}
-
               <button
                 onClick={handleResolveTurn}
                 disabled={resolving || !activeGameId}
@@ -513,28 +446,16 @@ export default function Home() {
               >
                 {resolving ? "Resolving…" : "Resolve Turn"}
               </button>
-
               {resolverStatus && (
-                <p className="text-xs text-gray-400 font-mono break-all">
-                  {resolverStatus}
-                </p>
+                <p className="text-xs text-gray-400 font-mono break-all">{resolverStatus}</p>
               )}
-
               {lastResolution && (
                 <div className="space-y-2 border-t border-gray-700/50 pt-4">
-                  <div className="text-xs text-gray-500 uppercase tracking-widest">
-                    Resolution Result
-                  </div>
+                  <div className="text-xs text-gray-500 uppercase tracking-widest">Resolution Result</div>
                   <div className="text-xs space-y-1">
                     <div>
                       Game Over:{" "}
-                      <span
-                        className={
-                          lastResolution.gameOver
-                            ? "text-yellow-400"
-                            : "text-gray-400"
-                        }
-                      >
+                      <span className={lastResolution.gameOver ? "text-yellow-400" : "text-gray-400"}>
                         {lastResolution.gameOver ? "YES" : "No"}
                       </span>
                     </div>
@@ -546,15 +467,11 @@ export default function Home() {
                         </span>
                       </div>
                     )}
-                    <div>
-                      Combat events: {lastResolution.combatResults.length}
-                    </div>
+                    <div>Combat events: {lastResolution.combatResults.length}</div>
                     <div className="text-gray-600 font-mono text-[10px] break-all">
                       {lastResolution.algorithmHash}
                     </div>
-                    <div className="text-gray-600 text-[10px]">
-                      {lastResolution.resolvedAt}
-                    </div>
+                    <div className="text-gray-600 text-[10px]">{lastResolution.resolvedAt}</div>
                   </div>
                 </div>
               )}
@@ -566,9 +483,7 @@ export default function Home() {
       {/* ── Footer ── */}
       <footer className="border-t border-gray-800/50 mt-16 py-6">
         <div className="max-w-7xl mx-auto px-4 text-center text-xs text-gray-700 space-y-1">
-          <div>
-            Cipher Wars — Encrypted Strategy on Solana · Devnet
-          </div>
+          <div>Cipher Wars — Encrypted Strategy on Solana · Devnet</div>
           <div>
             X25519 ECDH + HKDF-SHA256 + AES-GCM-256 ·{" "}
             <span className="text-gray-600">MXE swap point:</span>{" "}

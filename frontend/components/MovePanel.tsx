@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useAnchorProgram } from "../app/providers";
+import { useAnchorProgram } from "../app/client-layout";
 import type { GameBoard } from "../lib/game";
 import { getAdjacentTerritories, isValidMove } from "../lib/game";
 import { encryptMove } from "../lib/encryption";
