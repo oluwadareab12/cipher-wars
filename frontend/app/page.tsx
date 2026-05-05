@@ -31,6 +31,7 @@ type Tab = "lobby" | "game" | "resolver";
 
 export default function Home() {
   const wallet = useWallet();
+  const { connected, publicKey } = wallet;
   const program = useAnchorProgram();
 
   const [tab, setTab] = useState<Tab>("lobby");
@@ -49,7 +50,7 @@ export default function Home() {
   const [resolverStatus, setResolverStatus] = useState<string>("");
   const [resolving, setResolving] = useState(false);
 
-  const myId = wallet.publicKey?.toBase58() ?? "";
+  const myId = publicKey?.toBase58() ?? "";
 
   // Generate a random hex game ID
   function generateGameId(): string {
@@ -65,7 +66,7 @@ export default function Home() {
 
   // Poll game state when active
   const pollGameState = useCallback(async () => {
-    if (!program || !activeGameId || !wallet.publicKey) return;
+    if (!program || !activeGameId || !publicKey) return;
 
     try {
       const state = await fetchGameState(program, activeGameId);
@@ -86,7 +87,7 @@ export default function Home() {
     } catch {
       // Game not found yet — normal while waiting
     }
-  }, [program, activeGameId, wallet.publicKey, board]);
+  }, [program, activeGameId, publicKey, board]);
 
   useEffect(() => {
     if (!activeGameId) return;
@@ -96,8 +97,17 @@ export default function Home() {
   }, [activeGameId, pollGameState]);
 
   async function handleCreateGame() {
-    if (!program || !wallet.publicKey) {
-      setLobbyStatus("Connect your wallet first");
+    console.log("[CipherWars] handleCreateGame", {
+      connected,
+      publicKey: publicKey?.toBase58(),
+      programReady: !!program,
+    });
+    if (!connected || !publicKey) {
+      setLobbyStatus("Connect your wallet first.");
+      return;
+    }
+    if (!program) {
+      setLobbyStatus("Program not initialized — please wait a moment and try again.");
       return;
     }
     setLobbyStatus("Creating game on devnet…");
@@ -117,8 +127,17 @@ export default function Home() {
   }
 
   async function handleJoinGame() {
-    if (!program || !wallet.publicKey) {
-      setLobbyStatus("Connect your wallet first");
+    console.log("[CipherWars] handleJoinGame", {
+      connected,
+      publicKey: publicKey?.toBase58(),
+      programReady: !!program,
+    });
+    if (!connected || !publicKey) {
+      setLobbyStatus("Connect your wallet first.");
+      return;
+    }
+    if (!program) {
+      setLobbyStatus("Program not initialized — please wait a moment and try again.");
       return;
     }
     setLobbyStatus("Joining game…");
@@ -224,7 +243,7 @@ export default function Home() {
   }
 
   async function handleClaimWinnings() {
-    if (!program || !wallet.publicKey || !winnerId || !activeGameId) return;
+    if (!program || !publicKey || !winnerId || !activeGameId) return;
     setClaiming(true);
     try {
       const tx = await resolveGame(
@@ -261,7 +280,7 @@ export default function Home() {
 
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
         {/* ── Tabs ── */}
-        {wallet.connected && (
+        {connected && (
           <div className="flex gap-1 bg-gray-900/60 border border-gray-800 rounded-xl p-1 w-fit">
             {(["lobby", "game", "resolver"] as Tab[]).map((t) => (
               <button
@@ -279,7 +298,7 @@ export default function Home() {
           </div>
         )}
 
-        {!wallet.connected && (
+        {!connected && (
           <div className="text-center py-24 space-y-4">
             <div className="text-5xl font-black text-glow-cyan text-cyan-400 tracking-tight">
               CIPHER WARS
@@ -297,7 +316,7 @@ export default function Home() {
           </div>
         )}
 
-        {wallet.connected && tab === "lobby" && (
+        {connected && tab === "lobby" && (
           <div className="grid md:grid-cols-2 gap-6 max-w-3xl">
             {/* Create Game */}
             <div className="rounded-xl border border-gray-700/60 bg-gray-900/60 backdrop-blur p-6 space-y-4">
@@ -393,7 +412,7 @@ export default function Home() {
           </div>
         )}
 
-        {wallet.connected && tab === "game" && (
+        {connected && tab === "game" && (
           <div className="space-y-6">
             {!activeGameId ? (
               <p className="text-gray-500 text-sm">
@@ -460,7 +479,7 @@ export default function Home() {
           </div>
         )}
 
-        {wallet.connected && tab === "resolver" && (
+        {connected && tab === "resolver" && (
           <div className="max-w-lg space-y-4">
             <div className="rounded-xl border border-purple-700/40 bg-gray-900/60 backdrop-blur p-6 space-y-4">
               <h2 className="font-bold text-purple-400 uppercase tracking-widest text-sm">

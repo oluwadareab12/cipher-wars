@@ -28,10 +28,11 @@ export function useAnchorProgram(): Program | null {
 
 function ProgramProviderInner({ children }: { children: ReactNode }) {
   const wallet = useWallet();
+  const { connected, publicKey, signTransaction, signAllTransactions } = wallet;
   const [program, setProgram] = useState<Program | null>(null);
 
   useEffect(() => {
-    if (!wallet.connected || !wallet.publicKey) {
+    if (!connected || !publicKey || !signTransaction || !signAllTransactions) {
       setProgram(null);
       return;
     }
@@ -40,10 +41,12 @@ function ProgramProviderInner({ children }: { children: ReactNode }) {
       const provider = getProvider(wallet, conn);
       const prog = getProgram(provider);
       setProgram(prog);
-    } catch {
+    } catch (e) {
+      console.error("[CipherWars] Failed to initialize Anchor program:", e);
       setProgram(null);
     }
-  }, [wallet.connected, wallet.publicKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connected, publicKey, signTransaction, signAllTransactions]);
 
   return (
     <ProgramContext.Provider value={program}>
