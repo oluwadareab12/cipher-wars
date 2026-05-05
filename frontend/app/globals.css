@@ -1,0 +1,81 @@
+@import "@solana/wallet-adapter-react-ui/styles.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --cyan: #00f5ff;
+  --purple: #8b5cf6;
+  --bg-deep: #0a0a0f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg-deep);
+  color: #f0f0f0;
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #111118;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2a3a;
+  border-radius: 3px;
+}
+
+/* Neon glow utilities */
+.glow-cyan {
+  box-shadow: 0 0 20px #00f5ff33, 0 0 40px #00f5ff11;
+}
+.glow-purple {
+  box-shadow: 0 0 20px #8b5cf633, 0 0 40px #8b5cf611;
+}
+.text-glow-cyan {
+  text-shadow: 0 0 16px #00f5ff88;
+}
+.text-glow-purple {
+  text-shadow: 0 0 16px #8b5cf688;
+}
+
+/* Glassmorphism card */
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* Wallet adapter button overrides */
+.wallet-adapter-button {
+  background: linear-gradient(135deg, #00f5ff22, #8b5cf622) !important;
+  border: 1px solid #00f5ff44 !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+}
+.wallet-adapter-button:hover {
+  background: linear-gradient(135deg, #00f5ff44, #8b5cf644) !important;
+}
+
+/* Grid scan-line overlay for game board */
+.scanlines::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    rgba(0, 245, 255, 0.015) 2px,
+    rgba(0, 245, 255, 0.015) 4px
+  );
+  pointer-events: none;
+  border-radius: inherit;
+}

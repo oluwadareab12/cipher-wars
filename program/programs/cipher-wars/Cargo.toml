@@ -1,0 +1,19 @@
+[package]
+name = "cipher-wars"
+version = "0.1.0"
+description = "Cipher Wars — hidden-information strategy game on Solana"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "cipher_wars"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = "0.30.1"
