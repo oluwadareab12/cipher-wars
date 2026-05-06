@@ -119,6 +119,7 @@ function AnchorProgramProvider({ children }: { children: ReactNode }) {
 // ─── Client-only layout wrapping all wallet adapter providers ─────────────────
 
 export default function ClientLayout({ children }: { children: ReactNode }) {
+  console.log("[CipherWars] ClientLayout rendering");
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 
   return (
