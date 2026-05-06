@@ -71,13 +71,11 @@ function AnchorProgramProvider({ children }: { children: ReactNode }) {
   }, [publicKey]);
 
   useEffect(() => {
-    console.log("[CipherWars] wallet state:", {
+    console.log("WALLET STATE:", {
       connected: wallet.connected,
       publicKey: wallet.publicKey?.toBase58(),
-      wallet: wallet.wallet?.adapter.name,
-      readyState: wallet.wallet?.readyState,
     });
-  }, [wallet.connected, wallet.publicKey, wallet.wallet]);
+  }, [wallet.connected, wallet.publicKey]);
 
   useEffect(() => {
     if (!wallet.publicKey || !wallet.signTransaction || !wallet.signAllTransactions) return;
