@@ -55,6 +55,11 @@ function AnchorProgramProvider({ children }: { children: ReactNode }) {
     setRetryCount((c) => c + 1);
   }, []);
 
+  // Log every publicKey change so we can confirm when the wallet adapter delivers it.
+  useEffect(() => {
+    console.log("[CipherWars] publicKey changed →", publicKey?.toBase58() ?? "null");
+  }, [publicKey]);
+
   useEffect(() => {
     if (!publicKey) {
       setProgram(null);
@@ -62,13 +67,8 @@ function AnchorProgramProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Phantom availability guard — don't attempt init until the extension announces itself.
-    const win = window as Window & { solana?: { isPhantom?: boolean } };
-    if (!win.solana?.isPhantom) {
-      // Phantom not detected yet; wallet adapter will re-trigger once publicKey arrives.
-      return;
-    }
-
+    // publicKey being non-null means the wallet adapter has already verified the
+    // connection — no need to check window.solana manually.
     cancelRef.current = false;
 
     const init = async () => {
