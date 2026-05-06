@@ -20,9 +20,14 @@ import {
   useConnection,
 } from "@solana/wallet-adapter-react";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
-
+import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
 import type { Program } from "@coral-xyz/anchor";
 import { getProvider, getProgram } from "../lib/anchor";
+
+if (typeof window !== "undefined") {
+  // @ts-ignore
+  window.__SOLANA_WALLET_STANDARD__ = false;
+}
 
 // Ankr endpoint shared with anchor.ts — both providers must agree.
 const DEVNET_RPC = "https://rpc.ankr.com/solana_devnet";
@@ -127,7 +132,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
     console.log("[CipherWars] ClientLayout rendering");
     console.log("🔥 WalletProvider mounted");
   }, []);
-  const wallets = useMemo(() => [], []);
+  const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 
   return (
     <ConnectionProvider endpoint={DEVNET_RPC}>
