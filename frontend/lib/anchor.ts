@@ -8,13 +8,15 @@ import {
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import type { WalletContextState } from "@solana/wallet-adapter-react";
 
-const DEVNET_RPC = "https://api.devnet.solana.com";
+// Ankr public devnet endpoint — more reliable than the official public RPC.
+// Swap for a Helius key (https://helius.dev) when one is available.
+const DEVNET_RPC = "https://rpc.ankr.com/solana_devnet";
 const PROGRAM_ID = new PublicKey(
   "5dCn2JB86JwZo93NQAZ2unBqAxQLc1ZwXUbbgFPooxTi"
 );
 
 // Minimal IDL for client-side interaction
-const IDL = {
+export const IDL = {
   address: "5dCn2JB86JwZo93NQAZ2unBqAxQLc1ZwXUbbgFPooxTi",
   version: "0.1.0",
   name: "cipher_wars",
@@ -154,6 +156,24 @@ export interface EncryptedMoveOnChain {
 
 export function getConnection(): Connection {
   return new Connection(DEVNET_RPC, "confirmed");
+}
+
+// Creates a Connection and verifies it with a lightweight call, retrying on failure.
+export async function connectWithRetry(retries = 3): Promise<Connection> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const conn = new Connection(DEVNET_RPC, "confirmed");
+      await conn.getLatestBlockhash(); // verify the endpoint is reachable
+      return conn;
+    } catch (e) {
+      lastError = e;
+      if (attempt < retries - 1) {
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
+  }
+  throw lastError;
 }
 
 export function getProvider(

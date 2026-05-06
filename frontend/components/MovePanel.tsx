@@ -22,7 +22,7 @@ export default function MovePanel({
   onMoveSubmitted,
 }: Props) {
   const wallet = useWallet();
-  const program = useAnchorProgram();
+  const { program } = useAnchorProgram();
 
   const [fromTerritory, setFromTerritory] = useState<number>(-1);
   const [toTerritory, setToTerritory] = useState<number>(-1);

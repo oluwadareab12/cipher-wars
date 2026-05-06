@@ -44,7 +44,7 @@ export default function Home() {
 function GameContent() {
   const wallet = useWallet();
   const { connected, publicKey } = wallet;
-  const program = useAnchorProgram();
+  const { program, error: networkError, retry: retryInit } = useAnchorProgram();
 
   const [tab, setTab] = useState<Tab>("lobby");
   const [activeGameId, setActiveGameId] = useState<string>("");
@@ -242,6 +242,26 @@ function GameContent() {
       </div>
 
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+        {/* ── Network status ── */}
+        {connected && !program && !networkError && (
+          <div className="text-xs text-gray-400 font-mono bg-gray-800/40 rounded-lg p-3 border border-gray-700/50 animate-pulse">
+            Connecting to network…
+          </div>
+        )}
+        {connected && networkError && (
+          <div className="rounded-xl border border-red-500/40 bg-red-950/20 p-4 flex items-center justify-between gap-4">
+            <span className="text-xs text-red-400 font-mono">
+              Network error. {networkError}
+            </span>
+            <button
+              onClick={retryInit}
+              className="shrink-0 text-xs bg-red-500/20 hover:bg-red-500/40 text-red-300 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* ── Tabs ── */}
         {connected && (
           <div className="flex gap-1 bg-gray-900/60 border border-gray-800 rounded-xl p-1 w-fit">
@@ -279,7 +299,7 @@ function GameContent() {
           </div>
         )}
 
-        {connected && tab === "lobby" && (
+        {connected && program && tab === "lobby" && (
           <div className="grid md:grid-cols-2 gap-6 max-w-3xl">
             {/* Create Game */}
             <div className="rounded-xl border border-gray-700/60 bg-gray-900/60 backdrop-blur p-6 space-y-4">
@@ -365,7 +385,7 @@ function GameContent() {
           </div>
         )}
 
-        {connected && tab === "game" && (
+        {connected && program && tab === "game" && (
           <div className="space-y-6">
             {!activeGameId ? (
               <p className="text-gray-500 text-sm">Create or join a game in the Lobby tab first.</p>
@@ -417,7 +437,7 @@ function GameContent() {
           </div>
         )}
 
-        {connected && tab === "resolver" && (
+        {connected && program && tab === "resolver" && (
           <div className="max-w-lg space-y-4">
             <div className="rounded-xl border border-purple-700/40 bg-gray-900/60 backdrop-blur p-6 space-y-4">
               <h2 className="font-bold text-purple-400 uppercase tracking-widest text-sm">

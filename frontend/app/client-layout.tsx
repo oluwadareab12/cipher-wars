@@ -2,9 +2,11 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -15,57 +17,104 @@ import {
 } from "@solana/wallet-adapter-react";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
-import { clusterApiUrl } from "@solana/web3.js";
 import type { Program } from "@coral-xyz/anchor";
-import { getConnection, getProvider, getProgram } from "../lib/anchor";
+import { connectWithRetry, getProvider, getProgram } from "../lib/anchor";
+
+// Ankr endpoint shared with anchor.ts — both providers must agree.
+const DEVNET_RPC = "https://rpc.ankr.com/solana_devnet";
 
 // ─── Anchor program context ───────────────────────────────────────────────────
 
-const ProgramContext = createContext<Program | null>(null);
+interface ProgramContextValue {
+  program: Program | null;
+  error: string | null;
+  retry: () => void;
+}
 
-export function useAnchorProgram(): Program | null {
+const ProgramContext = createContext<ProgramContextValue>({
+  program: null,
+  error: null,
+  retry: () => {},
+});
+
+export function useAnchorProgram(): ProgramContextValue {
   return useContext(ProgramContext);
 }
 
 function AnchorProgramProvider({ children }: { children: ReactNode }) {
   const wallet = useWallet();
-  const { connected, publicKey, signTransaction, signAllTransactions } = wallet;
+  const { publicKey } = wallet;
   const [program, setProgram] = useState<Program | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const cancelRef = useRef(false);
+
+  const retry = useCallback(() => {
+    setError(null);
+    setProgram(null);
+    setRetryCount((c) => c + 1);
+  }, []);
 
   useEffect(() => {
-    if (!connected || !publicKey || !signTransaction || !signAllTransactions) {
+    if (!publicKey) {
       setProgram(null);
+      setError(null);
       return;
     }
-    try {
-      const conn = getConnection();
-      const provider = getProvider(wallet, conn);
-      setProgram(getProgram(provider));
-    } catch (e) {
-      console.error("[CipherWars] Failed to initialize Anchor program:", e);
-      setProgram(null);
+
+    // Phantom availability guard — don't attempt init until the extension announces itself.
+    const win = window as Window & { solana?: { isPhantom?: boolean } };
+    if (!win.solana?.isPhantom) {
+      // Phantom not detected yet; wallet adapter will re-trigger once publicKey arrives.
+      return;
     }
-  // wallet reference changes on every render; individual fields are stable signals
+
+    cancelRef.current = false;
+
+    const init = async () => {
+      try {
+        setError(null);
+        const connection = await connectWithRetry(3);
+        if (cancelRef.current) return;
+
+        const provider = getProvider(wallet, connection);
+        const prog = getProgram(provider);
+        if (cancelRef.current) return;
+
+        setProgram(prog);
+      } catch (err) {
+        if (cancelRef.current) return;
+        console.error("[CipherWars] Anchor init failed:", err);
+        setError(
+          err instanceof Error ? err.message : "Network error. Please retry."
+        );
+        setProgram(null);
+      }
+    };
+
+    init();
+
+    return () => {
+      cancelRef.current = true;
+    };
+  // retryCount lets the retry button force a fresh attempt
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connected, publicKey, signTransaction, signAllTransactions]);
+  }, [publicKey, retryCount]);
 
   return (
-    <ProgramContext.Provider value={program}>
+    <ProgramContext.Provider value={{ program, error, retry }}>
       {children}
     </ProgramContext.Provider>
   );
 }
 
 // ─── Client-only layout wrapping all wallet adapter providers ─────────────────
-// Rendered directly from page.tsx (not layout.tsx) so the provider tree
-// never touches the SSR pass — eliminating hydration mismatch #418.
 
 export default function ClientLayout({ children }: { children: ReactNode }) {
-  const endpoint = useMemo(() => clusterApiUrl("devnet"), []);
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 
   return (
-    <ConnectionProvider endpoint={endpoint}>
+    <ConnectionProvider endpoint={DEVNET_RPC}>
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
           <AnchorProgramProvider>
