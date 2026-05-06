@@ -107,17 +107,17 @@ function GameContent() {
   }, [activeGameId, pollGameState]);
 
   async function handleCreateGame() {
-    console.log("[CipherWars] handleCreateGame", {
-      connected,
-      publicKey: publicKey?.toBase58(),
-      programReady: !!program,
-    });
-    if (!connected || !publicKey) {
-      setLobbyStatus("Connect your wallet first.");
+    console.log({ connected, publicKey: publicKey?.toBase58(), program: !!program });
+    if (!connected) {
+      setLobbyStatus("Wallet not connected");
+      return;
+    }
+    if (!publicKey) {
+      setLobbyStatus("No public key");
       return;
     }
     if (!program) {
-      setLobbyStatus("Program not initialized — please wait a moment and try again.");
+      setLobbyStatus("Program not initialized — check console for details");
       return;
     }
     setLobbyStatus("Creating game on devnet…");

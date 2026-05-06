@@ -74,17 +74,25 @@ function AnchorProgramProvider({ children }: { children: ReactNode }) {
     const init = async () => {
       try {
         setError(null);
+        console.log("[CipherWars] INIT: wallet ready, publicKey =", publicKey?.toBase58());
+
         const connection = await connectWithRetry(3);
         if (cancelRef.current) return;
+        console.log("[CipherWars] INIT: RPC connection established", connection.rpcEndpoint);
 
         const provider = getProvider(wallet, connection);
+        if (cancelRef.current) return;
+        console.log("[CipherWars] INIT: AnchorProvider created", provider);
+
         const prog = getProgram(provider);
         if (cancelRef.current) return;
+        console.log("[CipherWars] INIT: Program created", prog.programId.toBase58());
 
         setProgram(prog);
+        console.log("[CipherWars] INIT: program set in context ✓");
       } catch (err) {
         if (cancelRef.current) return;
-        console.error("[CipherWars] Anchor init failed:", err);
+        console.error("PROGRAM INIT FAILED:", err);
         setError(
           err instanceof Error ? err.message : "Network error. Please retry."
         );
