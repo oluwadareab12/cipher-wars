@@ -53,7 +53,7 @@ export default function Home() {
 
 function GameContent() {
   const wallet = useWallet();
-  const { connected, publicKey } = wallet;
+  const { connected, publicKey, connect } = wallet;
   const { program, error: networkError, retry: retryInit } = useAnchorProgram();
 
   const [tab, setTab] = useState<Tab>("lobby");
@@ -301,6 +301,23 @@ function GameContent() {
             <div className="pt-4">
               <WalletButton />
             </div>
+          </div>
+        )}
+
+        {tab === "lobby" && wallet.wallet && !connected && (
+          <div className="rounded-xl border border-cyan-700/40 bg-gray-900/60 backdrop-blur p-6 max-w-3xl space-y-3">
+            <p className="text-sm text-gray-400">
+              <span className="text-cyan-400 font-semibold">{wallet.wallet.adapter.name}</span> detected but not yet connected to the app.
+            </p>
+            <button
+              onClick={() => connect().catch(console.error)}
+              className="px-6 py-2.5 rounded-lg font-semibold text-sm
+                bg-gradient-to-r from-cyan-700/80 to-cyan-500/80 text-black
+                hover:from-cyan-500 hover:to-cyan-400 transition-all
+                shadow-[0_0_16px_#00f5ff33]"
+            >
+              Connect {wallet.wallet.adapter.name}
+            </button>
           </div>
         )}
 
