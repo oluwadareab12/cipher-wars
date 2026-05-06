@@ -1,5 +1,8 @@
 "use client";
 
+import { Buffer } from "buffer";
+if (typeof window !== "undefined") (window as unknown as { Buffer: typeof Buffer }).Buffer = Buffer;
+
 import {
   createContext,
   useCallback,
@@ -14,11 +17,12 @@ import {
   ConnectionProvider,
   WalletProvider,
   useWallet,
+  useConnection,
 } from "@solana/wallet-adapter-react";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
 import type { Program } from "@coral-xyz/anchor";
-import { connectWithRetry, getProvider, getProgram } from "../lib/anchor";
+import { getProvider, getProgram } from "../lib/anchor";
 
 // Ankr endpoint shared with anchor.ts — both providers must agree.
 const DEVNET_RPC = "https://rpc.ankr.com/solana_devnet";
@@ -44,6 +48,7 @@ export function useAnchorProgram(): ProgramContextValue {
 function AnchorProgramProvider({ children }: { children: ReactNode }) {
   const wallet = useWallet();
   const { publicKey } = wallet;
+  const { connection } = useConnection();
   const [program, setProgram] = useState<Program | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -61,24 +66,14 @@ function AnchorProgramProvider({ children }: { children: ReactNode }) {
   }, [publicKey]);
 
   useEffect(() => {
-    if (!publicKey) {
-      setProgram(null);
-      setError(null);
-      return;
-    }
+    if (!wallet.publicKey || !wallet.signTransaction || !wallet.signAllTransactions) return;
 
-    // publicKey being non-null means the wallet adapter has already verified the
-    // connection — no need to check window.solana manually.
     cancelRef.current = false;
 
     const init = async () => {
       try {
         setError(null);
-        console.log("[CipherWars] INIT: wallet ready, publicKey =", publicKey?.toBase58());
-
-        const connection = await connectWithRetry(3);
-        if (cancelRef.current) return;
-        console.log("[CipherWars] INIT: RPC connection established", connection.rpcEndpoint);
+        console.log("[CipherWars] INIT: wallet ready, publicKey =", wallet.publicKey?.toBase58());
 
         const provider = getProvider(wallet, connection);
         if (cancelRef.current) return;
@@ -119,7 +114,9 @@ function AnchorProgramProvider({ children }: { children: ReactNode }) {
 // ─── Client-only layout wrapping all wallet adapter providers ─────────────────
 
 export default function ClientLayout({ children }: { children: ReactNode }) {
-  console.log("[CipherWars] ClientLayout rendering");
+  useEffect(() => {
+    console.log("[CipherWars] ClientLayout rendering");
+  }, []);
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 
   return (
