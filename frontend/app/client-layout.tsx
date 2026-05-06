@@ -125,6 +125,7 @@ function AnchorProgramProvider({ children }: { children: ReactNode }) {
 export default function ClientLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     console.log("[CipherWars] ClientLayout rendering");
+    console.log("🔥 WalletProvider mounted");
   }, []);
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 

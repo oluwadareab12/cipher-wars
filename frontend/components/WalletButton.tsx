@@ -7,7 +7,9 @@ import { Connection, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { getConnection } from "../lib/anchor";
 
 export default function WalletButton() {
-  const { publicKey, connected } = useWallet();
+  const wallet = useWallet();
+  const { publicKey, connected } = wallet;
+  console.log("WalletButton state:", { connected: wallet.connected, publicKey: wallet.publicKey?.toBase58() });
   const [balance, setBalance] = useState<number | null>(null);
 
   useEffect(() => {

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { useWallet } from "@solana/wallet-adapter-react";
 import WalletButton from "../components/WalletButton";
 import GameBoard from "../components/GameBoard";
 import MovePanel from "../components/MovePanel";
 import ResultCard from "../components/ResultCard";
-import ClientLayout, { useAnchorProgram } from "./client-layout";
+import { useAnchorProgram } from "./client-layout";
 import {
   createGame,
   joinGame,
@@ -41,19 +42,18 @@ function generateGameId(): string {
 // ─── Outer shell — renders ClientLayout so all wallet hooks below are
 //     guaranteed to run inside the provider tree, never during SSR. ────────────
 
+const GameContent = dynamic(() => Promise.resolve(GameContentComponent), { ssr: false });
+
 export default function Home() {
-  return (
-    <ClientLayout>
-      <GameContent />
-    </ClientLayout>
-  );
+  return <GameContent />;
 }
 
 // ─── All game logic lives here, safely inside the wallet provider tree ────────
 
-function GameContent() {
+function GameContentComponent() {
   const wallet = useWallet();
   const { connected, publicKey, connect } = wallet;
+  console.log("GameContent state:", { connected, publicKey: publicKey?.toBase58() });
   const { program, error: networkError, retry: retryInit } = useAnchorProgram();
 
   const [tab, setTab] = useState<Tab>("lobby");
