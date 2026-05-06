@@ -28,6 +28,16 @@ const MXE_PUBLIC_KEY_B64 =
 
 type Tab = "lobby" | "game" | "resolver";
 
+// Module-level: never runs during render, only called from useEffect / event handlers.
+// Keeping window.crypto usage here (not inside the component body) ensures it is
+// provably absent from the SSR render path and cannot cause hydration mismatch #418.
+function generateGameId(): string {
+  const bytes = window.crypto.getRandomValues(new Uint8Array(32));
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 // ─── Outer shell — renders ClientLayout so all wallet hooks below are
 //     guaranteed to run inside the provider tree, never during SSR. ────────────
 
@@ -62,13 +72,8 @@ function GameContent() {
   const [resolverStatus, setResolverStatus] = useState<string>("");
   const [resolving, setResolving] = useState(false);
 
-  function generateGameId(): string {
-    const bytes = window.crypto.getRandomValues(new Uint8Array(32));
-    return Array.from(bytes)
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-  }
-
+  // Seed createGameId once on mount — useState("") gives a deterministic
+  // initial value for SSR; the random ID is set only after hydration completes.
   useEffect(() => {
     setCreateGameId(generateGameId());
   }, []);
