@@ -19,7 +19,6 @@ import {
   useWallet,
   useConnection,
 } from "@solana/wallet-adapter-react";
-import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 
 import type { Program } from "@coral-xyz/anchor";
 import { getProvider, getProgram } from "../lib/anchor";
@@ -135,11 +134,9 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
   return (
     <ConnectionProvider endpoint={DEVNET_RPC}>
       <WalletProvider wallets={wallets} autoConnect={false}>
-        <WalletModalProvider>
-          <AnchorProgramProvider>
-            {children}
-          </AnchorProgramProvider>
-        </WalletModalProvider>
+        <AnchorProgramProvider>
+          {children}
+        </AnchorProgramProvider>
       </WalletProvider>
     </ConnectionProvider>
   );
