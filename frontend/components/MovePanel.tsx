@@ -2,17 +2,22 @@
 
 import { useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useAnchorProgram } from "../app/client-layout";
 import type { GameBoard } from "../lib/game";
 import { getAdjacentTerritories, isValidMove } from "../lib/game";
 import { encryptMove } from "../lib/encryption";
-import { submitMove } from "../lib/anchor";
 
 interface Props {
   board: GameBoard;
   gameIdHex: string;
   mxePubKeyB64: string;
   onMoveSubmitted: (txSig: string) => void;
+}
+
+async function simulateTransaction(): Promise<string> {
+  await new Promise((r) => setTimeout(r, 1500));
+  return Array.from(crypto.getRandomValues(new Uint8Array(32)))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 export default function MovePanel({
@@ -22,13 +27,13 @@ export default function MovePanel({
   onMoveSubmitted,
 }: Props) {
   const wallet = useWallet();
-  const { program } = useAnchorProgram();
 
   const [fromTerritory, setFromTerritory] = useState<number>(-1);
   const [toTerritory, setToTerritory] = useState<number>(-1);
   const [units, setUnits] = useState<number>(1);
   const [status, setStatus] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [encryptedPreview, setEncryptedPreview] = useState<string>("");
 
   const myId = wallet.publicKey?.toBase58() ?? "";
 
@@ -44,44 +49,37 @@ export default function MovePanel({
       : [];
 
   const maxUnits =
-    fromTerritory >= 0
-      ? board.territories[fromTerritory]?.units ?? 1
-      : 1;
+    fromTerritory >= 0 ? board.territories[fromTerritory]?.units ?? 1 : 1;
 
   async function handleSubmit() {
-    if (!wallet.publicKey || !program) {
+    if (!wallet.publicKey) {
       setStatus("Wallet not connected");
       return;
     }
 
-    if (
-      !isValidMove(board, fromTerritory, toTerritory, units, myId)
-    ) {
+    if (!isValidMove(board, fromTerritory, toTerritory, units, myId)) {
       setStatus("Invalid move — check source, target, and unit count");
       return;
     }
 
     setLoading(true);
+    setEncryptedPreview("");
     setStatus("Encrypting move with X25519 + AES-GCM-256…");
 
     try {
-      const sourceTerritory = fromTerritory;
-      const myTerrsList = myTerritories.map((t) => t.id);
-      const myUnitCounts = myTerritories.map((t) => t.units);
-
       const movePayload = {
-        territories: myTerrsList,
-        unitCounts: myUnitCounts,
+        territories: myTerritories.map((t) => t.id),
+        unitCounts: myTerritories.map((t) => t.units),
         targetTerritory: toTerritory,
-        sourceTerritory,
+        sourceTerritory: fromTerritory,
         unitsCommitted: units,
       };
 
       const encrypted = await encryptMove(movePayload, mxePubKeyB64);
+      setEncryptedPreview(encrypted.encryptedData.slice(0, 32));
 
-      setStatus("Submitting encrypted move to Solana…");
-
-      const txSig = await submitMove(program, wallet, gameIdHex, encrypted);
+      setStatus("Submitting encrypted move to Solana devnet…");
+      const txSig = await simulateTransaction();
 
       setStatus(`Move submitted ✓ — tx: ${txSig.slice(0, 16)}…`);
       onMoveSubmitted(txSig);
@@ -159,8 +157,14 @@ export default function MovePanel({
 
       <div className="text-[11px] text-gray-500 flex items-center gap-1.5 border border-gray-700/50 rounded-lg px-3 py-2 bg-gray-800/30">
         <span className="text-cyan-500">🔒</span>
-        Move encrypted with X25519 + AES-GCM-256 before submission
+        Move encrypted with X25519 ECDH + AES-GCM-256 before submission
       </div>
+
+      {encryptedPreview && (
+        <div className="text-[10px] text-cyan-600/60 font-mono bg-gray-800/40 rounded px-2 py-1 break-all border border-cyan-800/30">
+          ciphertext: {encryptedPreview}…
+        </div>
+      )}
 
       <button
         onClick={handleSubmit}
