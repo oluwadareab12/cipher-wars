@@ -8,11 +8,12 @@ import {
   ConnectionProvider,
   WalletProvider,
 } from "@solana/wallet-adapter-react";
+import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
 
 const DEVNET_RPC = "https://rpc.ankr.com/solana_devnet";
 
 export default function ClientLayout({ children }: { children: ReactNode }) {
-  const wallets = useMemo(() => [], []);
+  const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 
   return (
     <ConnectionProvider endpoint={DEVNET_RPC}>

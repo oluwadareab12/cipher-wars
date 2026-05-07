@@ -5,6 +5,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 
 export default function GameContent() {
   const wallet = useWallet();
+  console.log("WALLET OBJECT", wallet);
   const { connected, publicKey, connect } = wallet;
 
   useEffect(() => {
