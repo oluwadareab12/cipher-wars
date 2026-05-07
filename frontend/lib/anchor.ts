@@ -87,7 +87,7 @@ export const IDL = {
               defined: "GameStatus",
             },
           },
-          { name: "winner", type: { option: "publicKey" } },
+          { name: "winner", type: { option: { defined: "publicKey" } } },
           {
             name: "playerOneMoves",
             type: { vec: { defined: "EncryptedMove" } },
