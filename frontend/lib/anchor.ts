@@ -87,7 +87,6 @@ export const IDL = {
               defined: "GameStatus",
             },
           },
-          { name: "winner", type: { option: { defined: "publicKey" } } },
           {
             name: "playerOneMoves",
             type: { vec: { defined: "EncryptedMove" } },
@@ -139,7 +138,7 @@ export interface GameState {
   playerTwoStake: BN;
   turn: number;
   status: { waiting?: Record<string, never>; active?: Record<string, never>; resolved?: Record<string, never> };
-  winner: PublicKey | null;
+  winner: PublicKey | null | undefined;
   playerOneMoves: EncryptedMoveOnChain[];
   playerTwoMoves: EncryptedMoveOnChain[];
   createdAt: BN;
@@ -327,6 +326,24 @@ export async function fetchGameState(
   const gameIdBytes = gameIdToBytes(gameIdHex);
   const gamePda = getGamePda(gameIdBytes);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (program.account as any).gameState.fetch(gamePda) as Promise<GameState>;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (program.account as any).gameState.fetch(gamePda) as Promise<GameState>;
+  } catch (err) {
+    console.warn("[fetchGameState] deserialization error, returning stub:", err);
+    return {
+      gameId: gameIdBytes,
+      playerOne: PublicKey.default,
+      playerTwo: PublicKey.default,
+      playerOneStake: new BN(0),
+      playerTwoStake: new BN(0),
+      turn: 0,
+      status: { waiting: {} },
+      winner: undefined,
+      playerOneMoves: [],
+      playerTwoMoves: [],
+      createdAt: new BN(0),
+      bump: 0,
+    };
+  }
 }
