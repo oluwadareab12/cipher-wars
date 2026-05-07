@@ -37,8 +37,20 @@ export default function GameContent() {
               {wallet.publicKey?.toBase58().slice(0, 4)}...{wallet.publicKey?.toBase58().slice(-4)}
             </button>
           ) : (
-            <button
-              onClick={() => wallet.connect().catch(console.error)}
+            <button onClick={async () => {
+              try {
+                console.log("CONNECT CLICKED");
+                console.log("Available wallets:", wallet.wallets.map(w => w.adapter.name));
+                if (!wallet.wallet) {
+                  await wallet.select("Phantom" as any);
+                  console.log("Phantom selected");
+                }
+                await wallet.connect();
+                console.log("CONNECTED:", wallet.publicKey?.toBase58());
+              } catch (e) {
+                console.error("CONNECT ERROR:", e);
+              }
+            }}
               className="px-4 py-2 rounded-lg bg-cyan-500/20 border border-cyan-500/50 text-sm font-semibold text-cyan-400 hover:bg-cyan-500/30 transition-colors"
             >
               Connect Wallet
@@ -62,7 +74,20 @@ export default function GameContent() {
             </div>
             <div className="pt-4">
               <button
-                onClick={() => connect().catch(console.error)}
+                onClick={async () => {
+                  try {
+                    console.log("CONNECT CLICKED");
+                    console.log("Available wallets:", wallet.wallets.map(w => w.adapter.name));
+                    if (!wallet.wallet) {
+                      await wallet.select("Phantom" as any);
+                      console.log("Phantom selected");
+                    }
+                    await wallet.connect();
+                    console.log("CONNECTED:", wallet.publicKey?.toBase58());
+                  } catch (e) {
+                    console.error("CONNECT ERROR:", e);
+                  }
+                }}
                 className="px-6 py-3 rounded-lg font-semibold text-sm
                   bg-gradient-to-r from-cyan-700/80 to-cyan-500/80 text-black
                   hover:from-cyan-500 hover:to-cyan-400 transition-all
