@@ -98,9 +98,10 @@ export default function GameContent() {
 
   useEffect(() => {
     if (!activeGameId) return;
-    const id = setInterval(pollGameState, 5000);
-    pollGameState();
-    return () => clearInterval(id);
+    // Polling disabled — re-enable once on-chain deserialization is confirmed stable
+    // const id = setInterval(pollGameState, 5000);
+    // pollGameState();
+    // return () => clearInterval(id);
   }, [activeGameId, pollGameState]);
 
   async function handleCreateGame() {
