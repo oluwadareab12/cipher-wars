@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { sendSanityCheck } from "../lib/solana";
 import GameBoard from "../components/GameBoard";
 import MovePanel from "../components/MovePanel";
 import ResultCard from "../components/ResultCard";
@@ -64,10 +65,26 @@ export default function GameContent() {
   const [resolverStatus, setResolverStatus] = useState<string>("");
   const [resolving, setResolving] = useState(false);
   const [solBalance, setSolBalance] = useState<number | null>(null);
+  const sanityCheckRan = useRef(false);
 
   useEffect(() => {
     setCreateGameId(generateGameId());
   }, []);
+
+  useEffect(() => {
+    console.log("WALLET STATE:", {
+      connected: wallet.connected,
+      publicKey: wallet.publicKey?.toBase58(),
+    });
+  }, [wallet.connected, wallet.publicKey]);
+
+  useEffect(() => {
+    if (!wallet.connected || !wallet.publicKey || sanityCheckRan.current) return;
+    sanityCheckRan.current = true;
+    sendSanityCheck(wallet, connection)
+      .then((sig) => console.log("SANITY CHECK OK:", sig))
+      .catch((err) => console.warn("SANITY CHECK FAILED:", err));
+  }, [wallet.connected, wallet.publicKey, wallet, connection]);
 
   useEffect(() => {
     if (!publicKey || !connection) return;
