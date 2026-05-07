@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { useAnchorProgram } from "../app/client-layout";
 import type { GameBoard } from "../lib/game";
 import { getAdjacentTerritories, isValidMove } from "../lib/game";
 import { encryptMove } from "../lib/encryption";
@@ -21,7 +22,7 @@ export default function MovePanel({
   onMoveSubmitted,
 }: Props) {
   const wallet = useWallet();
-  const program = null;
+  const { program } = useAnchorProgram();
 
   const [fromTerritory, setFromTerritory] = useState<number>(-1);
   const [toTerritory, setToTerritory] = useState<number>(-1);
