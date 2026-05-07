@@ -10,7 +10,6 @@ import { useAnchorProgram } from "./client-layout";
 import {
   createGame,
   joinGame,
-  fetchGameState,
   resolveGame,
 } from "../lib/anchor";
 import {
@@ -20,7 +19,6 @@ import {
 } from "../lib/game";
 import type { GameBoard as GameBoardType } from "../lib/game";
 import type { TurnResolution } from "../lib/mxe-types";
-import { resolveTurn, generateMxeKeyPair } from "../lib/mxe-client";
 
 const MXE_PUBLIC_KEY_B64 =
   "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
@@ -76,25 +74,9 @@ export default function GameContent() {
   }, [publicKey, connection]);
 
   const pollGameState = useCallback(async () => {
-    if (!program || !activeGameId || !publicKey) return;
-    try {
-      const state = await fetchGameState(program, activeGameId);
-      setTurnNumber(state.turn);
-      if (!board) {
-        const p1 = state.playerOne.toBase58();
-        const p2 = state.playerTwo.toBase58();
-        if (p2 !== "11111111111111111111111111111111") {
-          setBoard(initializeBoard(p1, p2));
-        }
-      }
-      if ("resolved" in state.status && state.winner) {
-        setGameOver(true);
-        setWinnerId(state.winner.toBase58());
-      }
-    } catch {
-      // game not found yet — normal while waiting
-    }
-  }, [program, activeGameId, publicKey, board]);
+    // fetchGameState removed — polling re-enabled once IDL deserialization is stable
+    return null;
+  }, []);
 
   useEffect(() => {
     if (!activeGameId) return;
@@ -127,8 +109,7 @@ export default function GameContent() {
       const tx = await joinGame(program, wallet, joinGameId);
       setActiveGameId(joinGameId);
       setLobbyStatus(`Joined ✓ — tx: ${tx.slice(0, 16)}…`);
-      const state = await fetchGameState(program, joinGameId);
-      setBoard(initializeBoard(state.playerOne.toBase58(), state.playerTwo.toBase58()));
+      // fetchGameState removed — board initialised when polling is re-enabled
       setTab("game");
     } catch (err) {
       setLobbyStatus(`Error: ${err instanceof Error ? err.message : String(err)}`);
@@ -138,65 +119,18 @@ export default function GameContent() {
   async function handleResolveTurn() {
     if (!program || !activeGameId) return;
     setResolving(true);
-    setResolverStatus("Fetching encrypted moves from chain…");
-    try {
-      const state = await fetchGameState(program, activeGameId);
-      if (state.playerOneMoves.length === 0 || state.playerTwoMoves.length === 0) {
-        setResolverStatus("Both players must submit moves before resolving");
-        setResolving(false);
-        return;
-      }
-      const lastTurn = state.turn - 1;
-      const p1Move = state.playerOneMoves.find((m) => m.turn === lastTurn);
-      const p2Move = state.playerTwoMoves.find((m) => m.turn === lastTurn);
-      if (!p1Move || !p2Move) {
-        setResolverStatus("Moves for last turn not found on chain");
-        setResolving(false);
-        return;
-      }
-      setResolverStatus("Sending to MXE for encrypted combat resolution…");
-      const mxeKeyPair = await generateMxeKeyPair();
-      const encInput = [
-        {
-          encryptedData: Buffer.from(p1Move.encryptedData).toString("base64"),
-          iv: Buffer.from(p1Move.iv).toString("base64"),
-          clientPublicKey: Buffer.from(p1Move.clientPublicKey).toString("base64"),
-          playerId: state.playerOne.toBase58(),
-        },
-        {
-          encryptedData: Buffer.from(p2Move.encryptedData).toString("base64"),
-          iv: Buffer.from(p2Move.iv).toString("base64"),
-          clientPublicKey: Buffer.from(p2Move.clientPublicKey).toString("base64"),
-          playerId: state.playerTwo.toBase58(),
-        },
-      ];
-      const resolution = await resolveTurn(encInput, mxeKeyPair.privateKey);
-      setLastResolution(resolution);
-      if (board) {
-        const updatedBoard = applyResolution(board, resolution);
-        setBoard(updatedBoard);
-        const winner = checkWinCondition(updatedBoard);
-        if (winner) { setGameOver(true); setWinnerId(winner); }
-      }
-      if (resolution.gameOver && resolution.winner) {
-        setResolverStatus(`Game over! Winner: ${resolution.winner.slice(0, 8)}… — calling resolve_game…`);
-        const tx = await resolveGame(program, wallet, activeGameId, new PublicKey(resolution.winner));
-        setResolverStatus(`Resolved on-chain ✓ — tx: ${tx.slice(0, 16)}…`);
-      } else {
-        setResolverStatus(`Turn resolved. Hash: ${resolution.algorithmHash.slice(0, 16)}…`);
-      }
-    } catch (err) {
-      setResolverStatus(`Error: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setResolving(false);
-    }
+    setResolverStatus("fetchGameState unavailable — on-chain deserialization pending fix.");
+    setResolving(false);
   }
 
   async function handleClaimWinnings() {
     if (!program || !publicKey || !winnerId || !activeGameId) return;
     setClaiming(true);
     try {
-      const tx = await resolveGame(program, wallet, activeGameId, new PublicKey(winnerId));
+      const tx = await resolveGame(
+        program, wallet, activeGameId, new PublicKey(winnerId),
+        PublicKey.default, PublicKey.default
+      );
       alert(`Winnings claimed ✓ — tx: ${tx}`);
     } catch (err) {
       alert(`Error: ${err instanceof Error ? err.message : String(err)}`);
