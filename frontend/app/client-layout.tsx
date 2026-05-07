@@ -20,7 +20,7 @@ import {
   useConnection,
 } from "@solana/wallet-adapter-react";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
-import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
+
 import type { Program } from "@coral-xyz/anchor";
 import { getProvider, getProgram } from "../lib/anchor";
 
@@ -130,11 +130,11 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
     console.log("[CipherWars] ClientLayout rendering");
     console.log("🔥 WalletProvider mounted");
   }, []);
-  const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
+  const wallets = useMemo(() => [], []);
 
   return (
     <ConnectionProvider endpoint={DEVNET_RPC}>
-      <WalletProvider wallets={wallets} autoConnect>
+      <WalletProvider wallets={wallets} autoConnect={false}>
         <WalletModalProvider>
           <AnchorProgramProvider>
             {children}
